@@ -21,6 +21,7 @@ public class InputReader : MonoBehaviour
     // State
     public Vector2 MoveInput { get; private set; }
     public Vector2 LookInput { get; private set; }
+    public bool IsGamepadLook { get; private set; }
     public float ZoomInput { get; private set; }
     public bool IsOrbiting { get; private set; } // Derived from right-click or similar
 
@@ -101,6 +102,20 @@ public class InputReader : MonoBehaviour
         if (_lookAction != null) 
         {
             LookInput = _lookAction.ReadValue<Vector2>();
+
+            var control = _lookAction.activeControl;
+            if (control != null)
+            {
+                var dev = control.device;
+                if (dev is Gamepad || dev is Joystick)
+                    IsGamepadLook = true;
+                else if (dev is Pointer || dev is Keyboard)
+                    IsGamepadLook = false;
+            }
+            else if (Gamepad.current != null && Gamepad.current.rightStick.ReadValue().sqrMagnitude > 0.01f)
+            {
+                IsGamepadLook = true;
+            }
         }
 
         if (_zoomAction != null) 

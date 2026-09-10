@@ -11,8 +11,12 @@ public class ThirdPersonCamera : MonoBehaviour
     public float distance = 5f;
 
     [Header("Camera Control")]
-    [Tooltip("How fast the camera rotates left/right")]
+    [Tooltip("How fast the camera rotates left/right with mouse")]
     public float sensitivityX = 2f;
+    [Tooltip("How fast the camera rotates left/right with controller (degrees per second)")]
+    public float controllerSensitivityX = 180f;
+    [Tooltip("Controller right stick deadzone to avoid camera drift")]
+    public float controllerDeadzone = 0.1f;
     [Tooltip("The fixed up/down angle of the camera (since vertical movement is locked)")]
     public float fixedPitch = 40f;
 
@@ -75,6 +79,16 @@ public class ThirdPersonCamera : MonoBehaviour
         {
             _input = target.GetComponent<InputReader>();
         }
+
+        // Load saved sensitivities if configured in PlayerPrefs
+        if (PlayerPrefs.HasKey("ControllerSensitivityX"))
+        {
+            controllerSensitivityX = PlayerPrefs.GetFloat("ControllerSensitivityX", controllerSensitivityX);
+        }
+        if (PlayerPrefs.HasKey("MouseSensitivityX"))
+        {
+            sensitivityX = PlayerPrefs.GetFloat("MouseSensitivityX", sensitivityX);
+        }
     }
 
     private void LateUpdate()
@@ -113,8 +127,29 @@ public class ThirdPersonCamera : MonoBehaviour
         // Lock vertical pitch to the fixed angle
         _currentY = fixedPitch;
 
-        // Only rotate left/right based on input
-        _currentX += lookInput.x * sensitivityX * 0.1f;
+        // Determine if look input is from a controller or mouse
+        bool isGamepad = _input != null && _input.IsGamepadLook;
+        if (!isGamepad && Gamepad.current != null && Gamepad.current.rightStick.ReadValue().sqrMagnitude > 0.01f)
+        {
+            isGamepad = true;
+        }
+
+        // Rotate left/right based on input device
+        if (isGamepad)
+        {
+            float stickX = lookInput.x;
+            if (Mathf.Abs(stickX) < controllerDeadzone)
+            {
+                stickX = 0f;
+            }
+            // Controller: analog stick deflection (-1 to 1) applied in degrees-per-second, scaled by deltaTime
+            _currentX += stickX * controllerSensitivityX * Time.deltaTime;
+        }
+        else
+        {
+            // Mouse: pixel delta per frame
+            _currentX += lookInput.x * sensitivityX * 0.1f;
+        }
 
         // 1. Smoothly follow the player's position
         Vector3 targetFocus = target.position + targetOffset;
